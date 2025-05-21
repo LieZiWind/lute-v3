@@ -19,5 +19,6 @@ class SrsExportSpec(db.Model):
     criteria = db.Column("SrsCriteria", db.String(1000), nullable=False)
     deck_name = db.Column("SrsDeckName", db.String(200), nullable=False)
     note_type = db.Column("SrsNoteType", db.String(200), nullable=False)
+    status_field = db.Column("SrsStatusField", db.String(200), nullable=False, server_default="")
     field_mapping = db.Column("SrsFieldMapping", db.String(1000), nullable=False)
     active = db.Column("SrsActive", db.Boolean, nullable=False, default=True)

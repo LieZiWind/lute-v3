@@ -181,9 +181,147 @@ let tooltip_textitem_hover_content = function (el, setContent) {
     type: 'get',
     success: function(response) {
       setContent(response);
+      // Initialize AI tab functionality after popup content is loaded
+      // The 'this' here refers to the element the tooltip is attached to (the hovered/clicked term)
+      // The actual popup is managed by jQuery UI, need to find it.
+      // However, setContent populates the tooltip's content, which becomes the popup.
+      // We need to ensure this runs *after* setContent has made the response content part of the DOM.
+      // A slight delay or ensuring the popup is visible might be needed,
+      // or find a more direct way to access the tooltip's content element.
+      // For now, assume setContent makes it available synchronously for attaching listeners.
+      // The popup's content is what 'response' is.
+      // Let's try to get the actual popup element, which is created by jQuery UI tooltip.
+      // This might be tricky as the popup is transient.
+      // A better approach: delegate events from a static parent.
+      // For initializing content once, we can do it here if setContent is synchronous enough.
+
+      // The actual popup content is complex to get directly here.
+      // Event delegation is preferred for clicks.
+      // For one-time setup (like initial AI fetch if AI tab is active),
+      // it's also tricky. Let's focus on click-triggered fetch for AI tab.
     }
   });
 }
+
+// AI Explanation Tab Logic
+// Helper to get current sentence text based on a word element within it.
+function getSentenceContextForAI(wordElement) {
+  const sentenceId = $(wordElement).data('sentence-id');
+  if (!sentenceId) {
+    return ''; // No sentence ID found on the element
+  }
+  const sentenceSpans = $(`#thetext span.textitem[data-sentence-id="${sentenceId}"]`).toArray();
+  return _get_textitems_text(sentenceSpans); // _get_textitems_text is already in lute.js
+}
+
+
+// Function to fetch and display AI explanation
+function fetchAndDisplayAIExplanation(popupContentElement, termElement) {
+  const aiTabPanel = $(popupContentElement).find('#termpopup-tab-ai');
+  if (aiTabPanel.data('ai-loaded') === true) {
+    return; // Already loaded
+  }
+
+  const loadingIndicator = $(popupContentElement).find('#ai_explanation_loading_indicator');
+  const contentHolder = $(popupContentElement).find('#ai_explanation_content');
+  const errorHolder = $(popupContentElement).find('#ai_explanation_error');
+  
+  loadingIndicator.show();
+  contentHolder.hide().empty();
+  errorHolder.hide().empty();
+
+  const paramsDiv = $(popupContentElement).find('#termpopup_ai_parameters');
+  const term_text = paramsDiv.data('termtext');
+  // const sentence_context_from_data = paramsDiv.data('sentence'); // Likely empty from Python
+  const language_name = paramsDiv.data('langname');
+
+  // Get sentence context from the DOM using the original term element that triggered the popup
+  const sentence_context = getSentenceContextForAI(termElement);
+
+  if (!term_text || !language_name) {
+    errorHolder.text("Missing term data for AI explanation.").show();
+    loadingIndicator.hide();
+    return;
+  }
+  if (!sentence_context) {
+    // It's possible a term doesn't belong to any sentence (e.g. title)
+    // Or if it's a multi-word term created from selected text not aligned with a sentence.
+    // console.warn("Sentence context not found for AI explanation.");
+    // Allow proceeding without sentence context, AI might still give a general explanation.
+  }
+
+  $.ajax({
+    url: '/read/ai_explanation',
+    type: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({
+      term_text: term_text,
+      sentence_context: sentence_context || "", // Send empty string if null/undefined
+      language_name: language_name
+    }),
+    success: function(response) {
+      loadingIndicator.hide();
+      if (response.error) {
+        errorHolder.text(response.error).show();
+      } else {
+        contentHolder.text(response.explanation).show(); // Using .text() to prevent XSS from AI output
+        aiTabPanel.data('ai-loaded', true); // Mark as loaded
+      }
+    },
+    error: function(xhr, status, err) {
+      loadingIndicator.hide();
+      let errorMsg = "Error fetching AI explanation.";
+      if (xhr.responseJSON && xhr.responseJSON.error) {
+        errorMsg = xhr.responseJSON.error;
+      } else if (err) {
+        errorMsg = `${errorMsg} ${err.toString()}`;
+      }
+      errorHolder.text(errorMsg).show();
+    }
+  });
+}
+
+// Event delegation for tab clicks within the tooltip (popup)
+// Attach to a static parent, e.g., document.body, as tooltips are dynamic.
+$(document).on('click', '.lute-termpopup-tab-list .lute-tab-link', function(e) {
+  e.preventDefault();
+  const $this = $(this);
+  const popupContent = $this.closest('.ui-tooltip-content'); // Find the current popup
+  
+  // Tab activation
+  popupContent.find('.lute-termpopup-tab-list .lute-tab-link').removeClass('active');
+  $this.addClass('active');
+  
+  popupContent.find('.lute-termpopup-tab-content').hide();
+  const targetTabId = $this.attr('href');
+  popupContent.find(targetTabId).show();
+
+  // If AI tab is clicked, fetch explanation
+  if (targetTabId === '#termpopup-tab-ai') {
+    // Find the original element that the tooltip is for, to get sentence context
+    // This is tricky. jQuery UI tooltip doesn't make it easy to get the target element
+    // from within the delegated event on the tooltip content.
+    // We need the LUTE_CURR_TERM_DATA_ORDER or the actual element.
+    // LUTE_CURR_TERM_DATA_ORDER is set on hover/click.
+    const currentTermOrder = LUTE_CURR_TERM_DATA_ORDER;
+    let termElementForContext = null;
+    if (currentTermOrder !== -1) {
+        termElementForContext = $('#thetext span.word').filter(function() {
+            return _get_order($(this)) == currentTermOrder;
+        });
+    }
+    if (termElementForContext && termElementForContext.length > 0) {
+        fetchAndDisplayAIExplanation(popupContent, termElementForContext.first());
+    } else {
+        // Fallback or error if original term element can't be identified
+        // This might happen if popup is triggered in a way that doesn't set LUTE_CURR_TERM_DATA_ORDER
+        const errorHolder = popupContent.find('#ai_explanation_error');
+        errorHolder.text("Could not identify original term for context. AI explanation might be less accurate.").show();
+        // Still try to fetch, sentence_context might be empty but term_text and lang still useful
+        fetchAndDisplayAIExplanation(popupContent, null); // Pass null if element not found
+    }
+  }
+});
 
 
 /* ========================================= */

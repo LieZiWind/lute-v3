@@ -174,6 +174,7 @@ def get_values_and_media_mapping(term, sentence_lookup, mapping):
         "parents.pronunciation": ", ".join(
             [p.romanization or "" for p in term.parents]
         ),
+        "status": term.status,
     }
 
     mapping_string = "; ".join(mapping.values())

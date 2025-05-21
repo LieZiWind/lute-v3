@@ -32,6 +32,7 @@ class SrsExportSpecForm(FlaskForm):
     )
     deck_name = SelectField("Deck Name", validators=[DataRequired(), Length(max=200)])
     note_type = SelectField("Note Type", validators=[DataRequired(), Length(max=200)])
+    status_field = StringField("Status Field", render_kw={"placeholder": "e.g., LuteStatus"})
     field_mapping = HiddenField(
         "Field Mapping", validators=[DataRequired(), Length(max=1000)]
     )

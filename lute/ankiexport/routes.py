@@ -121,6 +121,52 @@ def get_ankiconnect_post_data():
         return response
 
 
+@bp.route("/sync_status", methods=["POST"])
+def sync_anki_status():
+    """
+    Synchronize learning status from Anki cards back to Lute terms.
+    Expects a JSON payload with configuration, e.g.,
+    {
+        "anki_deck_name": "MyLuteDeck", // Optional: filter by deck
+        "anki_tag_name": "LuteExport",   // Required: to find Lute cards
+        "lute_term_id_field": "LuteTermID" // Required: Anki field holding Lute Term ID
+    }
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Missing JSON payload"}), 400
+
+    anki_tag_name = data.get("anki_tag_name")
+    lute_term_id_field = data.get("lute_term_id_field")
+
+    if not anki_tag_name or not lute_term_id_field:
+        return jsonify({"error": "Missing required parameters: anki_tag_name, lute_term_id_field"}), 400
+
+    anki_deck_name = data.get("anki_deck_name") # Optional
+
+    # The anki_deck_names and anki_note_types are not strictly needed for this service call,
+    # but the Service class constructor expects them. We can pass empty values or mock them.
+    # For now, let's assume the service method for status sync won't rely on these instance vars.
+    # If it does, this part needs rethinking, or the service method refactoring.
+    # Alternatively, the new service method could be a static method or a standalone function.
+    # For now, instantiating service with potentially empty/None values for parts it doesn't use for this op.
+    export_specs = db.session.query(SrsExportSpec).all() # Or maybe not needed if service is refactored.
+    svc = Service(anki_deck_names=[], anki_note_types_and_fields={}, export_specs=export_specs)
+
+    try:
+        # This db_session will be passed to the new service method.
+        result = svc.import_anki_statuses(
+            db_session=db.session,
+            anki_tag_name=anki_tag_name,
+            lute_term_id_field=lute_term_id_field,
+            anki_deck_name=anki_deck_name,
+        )
+        return jsonify(result)
+    except Exception as e:
+        # Log the exception e for debugging
+        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+
+
 @bp.route("/validate_export_specs", methods=["POST"])
 def validate_export_specs():
     """Get data that the client javascript will post."""

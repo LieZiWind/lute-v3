@@ -159,6 +159,59 @@ def new_page(bookid, position, pagenum):
     )
 
 
+@bp.route("/ai_explanation", methods=["POST"])
+def ai_explanation():
+    """
+    Get an AI-generated explanation for a term in context.
+    Expects JSON: { "term_text": "...", "sentence_context": "...", "language_name": "..." }
+    Returns JSON: { "explanation": "...", "error": null } or { "explanation": null, "error": "..." }
+    """
+    from lute.ai.service import get_ai_service, AIError # pylint: disable=import-outside-toplevel
+    # current_settings is already imported
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"explanation": None, "error": "Missing JSON payload"}), 400
+
+    term_text = data.get("term_text")
+    sentence_context = data.get("sentence_context")
+    language_name = data.get("language_name")
+
+    if not all([term_text, sentence_context, language_name]):
+        return jsonify({"explanation": None, "error": "Missing required data: term_text, sentence_context, or language_name"}), 400
+
+    ai_client = get_ai_service()
+    if ai_client is None:
+        provider = current_settings.get("ai_provider", "Unknown")
+        api_key_set = bool(current_settings.get("ai_api_key"))
+        err_msg = f"AI service not available. Provider: '{provider}', API key set: {api_key_set}."
+        if not provider or provider == "" :
+             err_msg = "AI provider not selected in settings."
+        elif not api_key_set:
+            err_msg = "AI API key not set in settings."
+        return jsonify({"explanation": None, "error": err_msg}), 400
+
+    prompt_template = current_settings.get("ai_prompt_explanation")
+    if not prompt_template: # Should have a default from current.py, but good to check.
+        prompt_template = "Explain the term \"{term}\" in the context of \"{context}\" (language: {lang})."
+        # Log that default is being used if possible, or just proceed.
+
+    try:
+        explanation = ai_client.get_contextual_explanation(
+            term_text=term_text,
+            context_sentence=sentence_context,
+            language=language_name,
+            custom_prompt_template=prompt_template
+        )
+        return jsonify({"explanation": explanation, "error": None})
+    except AIError as e:
+        # Log the error e if logging is set up
+        return jsonify({"explanation": None, "error": str(e)}), 500
+    except Exception as e: # Catch any other unexpected errors
+        # Log the error e
+        return jsonify({"explanation": None, "error": f"An unexpected error occurred: {str(e)}"}), 500
+
+
 @bp.route("/save_player_data", methods=["post"])
 def save_player_data():
     "Save current player position, bookmarks.  Called on a loop by the player."

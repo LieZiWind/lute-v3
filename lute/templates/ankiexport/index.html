@@ -9,7 +9,122 @@
 <table id="export_specs" class="display" width="100%"></table>
 <p><a href="/ankiexport/spec/new">Create new export specification</a></p>
 
+<hr style="margin-top: 2em; margin-bottom: 1em;">
+
+<div id="anki_status_sync_section" style="border: 1px solid #ccc; padding: 1em; margin-top: 1em; margin-bottom: 2em;">
+  <h3>Sync Term Status from Anki</h3>
+  <p>
+    This feature allows you to update the learning status of terms in Lute based on their status in Anki.
+    Please ensure Anki and AnkiConnect are running.
+  </p>
+  
+  <div>
+    <label for="anki_sync_tag_name_input" style="margin-right: 0.5em;">Anki Tag for Lute Cards:</label>
+    <input type="text" id="anki_sync_tag_name_input" value="LuteExport" placeholder="e.g., LuteExport" style="width: 200px; margin-right: 1em;">
+    <span class="text-muted small">(Tag used to identify cards exported from Lute)</span>
+  </div>
+  
+  <div style="margin-top: 0.5em;">
+    <label for="anki_sync_lute_id_field_input" style="margin-right: 0.5em;">Anki Field for Lute Term ID:</label>
+    <input type="text" id="anki_sync_lute_id_field_input" value="LuteTermID" placeholder="e.g., LuteTermID" style="width: 200px; margin-right: 1em;">
+    <span class="text-muted small">(Anki card field that stores the Lute Term ID)</span>
+  </div>
+
+  <div style="margin-top: 0.5em; margin-bottom: 1em;">
+    <label for="anki_sync_deck_name_input" style="margin-right: 0.5em;">Anki Deck Name (Optional):</label>
+    <input type="text" id="anki_sync_deck_name_input" placeholder="e.g., MyLuteDeck" style="width: 200px; margin-right: 1em;">
+    <span class="text-muted small">(Filter by a specific deck in Anki)</span>
+  </div>
+
+  <button id="sync_anki_status_button" class="btn btn-primary" style="background-color: #007bff; color: white; padding: 10px 15px; font-size: 1em;" onclick="handleAnkiStatusSync();">
+    Sync Anki Status to Lute Terms
+  </button>
+  <span id="anki_sync_status_message" style="margin-left: 1em;"></span>
+</div>
+
 <script>
+  function handleAnkiStatusSync() {
+    const syncButton = document.getElementById('sync_anki_status_button');
+    const tagNameInput = document.getElementById('anki_sync_tag_name_input');
+    const luteIdFieldInput = document.getElementById('anki_sync_lute_id_field_input');
+    const deckNameInput = document.getElementById('anki_sync_deck_name_input');
+    const statusMessageEl = document.getElementById('anki_sync_status_message');
+
+    const tagName = tagNameInput.value.trim();
+    const luteIdField = luteIdFieldInput.value.trim();
+    const deckName = deckNameInput.value.trim(); // Optional
+
+    // Clear previous messages
+    statusMessageEl.textContent = '';
+    statusMessageEl.className = ''; // Clear color classes if any
+
+    if (!tagName || !luteIdField) {
+      statusMessageEl.textContent = 'Error: Anki Tag Name and Lute Term ID Field are required.';
+      statusMessageEl.style.color = 'red'; // Or add a CSS class for errors
+      return;
+    }
+
+    // Disable button and show loading state
+    syncButton.disabled = true;
+    syncButton.textContent = 'Syncing...';
+    statusMessageEl.textContent = 'Syncing statuses with Anki...';
+    statusMessageEl.style.color = 'blue'; // Or a CSS class for loading
+
+    const payload = {
+      anki_tag_name: tagName,
+      lute_term_id_field: luteIdField
+    };
+    if (deckName) {
+      payload.anki_deck_name = deckName;
+    }
+
+    fetch('/ankiexport/sync_status', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+    .then(response => {
+      if (!response.ok) {
+        // Attempt to parse error from JSON response if possible for non-200 codes
+        return response.json().then(errData => {
+          throw new Error(errData.error || `Request failed with status ${response.status}`);
+        }).catch(() => {
+          // If parsing error JSON fails, throw generic status error
+          throw new Error(`Request failed with status ${response.status}`);
+        });
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.error) {
+        // Backend returned a structured error
+        statusMessageEl.textContent = `Error: ${data.error}`;
+        statusMessageEl.style.color = 'red';
+      } else {
+        let message = `Sync complete! Cards processed: ${data.cards_processed || 0}. Lute terms updated: ${data.lute_terms_updated || 0}.`;
+        if (data.lute_terms_not_found > 0) {
+            message += ` Lute terms not found: ${data.lute_terms_not_found}.`;
+        }
+        if (data.anki_cards_unmapped_or_error > 0) {
+            message += ` Anki cards could not be mapped or had errors: ${data.anki_cards_unmapped_or_error}.`;
+        }
+        statusMessageEl.textContent = message;
+        statusMessageEl.style.color = 'green';
+      }
+    })
+    .catch((error) => {
+      console.error('Anki Sync Error:', error);
+      statusMessageEl.textContent = `Error: ${error.message || 'An unexpected error occurred during sync.'}`;
+      statusMessageEl.style.color = 'red';
+    })
+    .finally(() => {
+      // Re-enable button and restore text
+      syncButton.disabled = false;
+      syncButton.textContent = 'Sync Anki Status to Lute Terms';
+    });
+  }
 
   $( document ).ready(function() {
     new DataTable('#export_specs', {

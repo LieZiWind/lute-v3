@@ -56,6 +56,18 @@ class UserSettingsForm(FlaskForm):
     use_ankiconnect = BooleanField("Enable export using AnkiConnect")
     ankiconnect_url = StringField("AnkiConnect URL", validators=[InputRequired()])
 
+    # AI Integration Settings
+    ai_provider_choices = [
+        ("", "-"), # Empty choice for not selected
+        ("openai", "OpenAI"),
+        ("gemini", "Google Gemini"),
+        ("claude", "Anthropic Claude"),
+    ]
+    ai_provider = SelectField("AI Provider", choices=ai_provider_choices, default="")
+    ai_api_key = StringField("AI API Key") # Consider PasswordField if obscurity is desired
+    ai_prompt_translation = TextAreaField("AI Translation Prompt", render_kw={"rows": 5})
+    ai_prompt_summary = TextAreaField("AI Summary Prompt", render_kw={"rows": 5})
+
     def validate_backup_dir(self, field):
         "Field must be set if enabled."
         if self.backup_enabled.data is False:

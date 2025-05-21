@@ -44,3 +44,15 @@ def refresh_global_settings(session):
     ]
     for k in boolkeys:
         current_settings[k] = current_settings[k] == "1"
+
+    # Ensure AI settings have default values if not in the database
+    # (e.g., for new installations or when settings haven't been saved yet)
+    default_ai_settings = {
+        "ai_provider": "",
+        "ai_api_key": "",
+        "ai_prompt_translation": "Translate the following text to {lang}: {text}",
+        "ai_prompt_summary": "Provide a concise summary of the following text: {text}",
+    }
+    for k, v_default in default_ai_settings.items():
+        if k not in current_settings:
+            current_settings[k] = v_default

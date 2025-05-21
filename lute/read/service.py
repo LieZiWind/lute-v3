@@ -22,6 +22,9 @@ class TermPopup:
     # pylint: disable=too-many-instance-attributes
     def __init__(self, term):
         self.term = term
+        # Raw term text, potentially with ZWS, suitable for AI lookup
+        self.term_text_for_lookup = term.text 
+        # Cleaned term text for display
         self.term_text = self._clean(term.text)
         self.parents_text = ", ".join([self._clean(p.text) for p in term.parents])
         self.translation = self._clean(term.translation)
@@ -30,6 +33,14 @@ class TermPopup:
         self.flash = self._clean(term.get_flash_message())
         self.image = term.get_current_image()
         self.popup_image_data = self._get_popup_image_data()
+        self.language_name_for_ai = term.language.name
+
+        # sentence_for_context is NOT available here with just termid.
+        # The JavaScript will need to get this from the DOM.
+        # For the HTML template data attribute, if it must be on this object,
+        # it would need to be passed into get_popup_data or set by the caller.
+        # For now, leaving it out of this Python object.
+        self.sentence_for_context = "" # Placeholder, JS should override.
 
         # Final data to include in popup.
         self.parents = []

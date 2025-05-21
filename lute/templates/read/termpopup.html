@@ -1,55 +1,94 @@
-<p>
-  <b style="font-size:120%">
-    {{ data.term_and_parents_text() }}
-  </b>
-  {% for t in data.tags %}
-  <span class="termpopup-tag">{{ t }}</span>
-  {% endfor %}
-</p>
+<div class="lute-termpopup-tabs">
+  <ul class="lute-termpopup-tab-list">
+    <li><a href="#termpopup-tab-details" class="lute-tab-link active">Details</a></li>
+    <li><a href="#termpopup-tab-ai" class="lute-tab-link">AI Explanation</a></li>
+    {# External dictionary lookup tabs might be added here by lute.js #}
+  </ul>
 
-{% if data.flash %}
-<p class="small-flash-notice">{{ data.flash }}</p>
-{% endif %}
+  <div id="termpopup-tab-details" class="lute-termpopup-tab-content">
+    <p>
+      <b style="font-size:120%">
+        {{ data.term_and_parents_text() }}
+      </b>
+      {% for t in data.tags %}
+      <span class="termpopup-tag">{{ t }}</span>
+      {% endfor %}
+    </p>
 
-{% if data.romanization %}
-<p><i>{{ data.romanization }}</i></p>
-{% endif %}
+    {% if data.flash %}
+    <p class="small-flash-notice">{{ data.flash }}</p>
+    {% endif %}
 
-{% for img, tooltip in data.popup_image_data.items() %}
-<img class="tooltip-image" src="{{ img }}" tooltip="{{ tooltip }}"/>
-{% endfor %}
+    {% if data.romanization %}
+    <p><i>{{ data.romanization }}</i></p>
+    {% endif %}
 
-{% if data.translation != "" %}<p>{{ data.translation | safe }}</p>{% endif %}
-
-{% if data.parents | length > 0 %}
-<div style="margin-top: 1.5em;">
-  {% for p in data.parents %}
-  <p>
-    <b>{{ p.term_text }}</b>
-    {% if p.romanization != "" %}<i>({{ p.romanization }})</i>{% endif %}
-    {% for t in p.tags %}
-    <span class="termpopup-tag">{{ t }}</span>
+    {% for img, tooltip in data.popup_image_data.items() %}
+    <img class="tooltip-image" src="{{ img }}" tooltip="{{ tooltip }}"/>
     {% endfor %}
-    {% if p.translation != "" %}<br />{{ p.translation | safe }}{% endif %}
-  </p>
-  {% endfor %}
+
+    {% if data.translation != "" %}<p>{{ data.translation | safe }}</p>{% endif %}
+
+    {% if data.parents | length > 0 %}
+    <div style="margin-top: 1.5em;">
+      {% for p in data.parents %}
+      <p>
+        <b>{{ p.term_text }}</b>
+        {% if p.romanization != "" %}<i>({{ p.romanization }})</i>{% endif %}
+        {% for t in p.tags %}
+        <span class="termpopup-tag">{{ t }}</span>
+        {% endfor %}
+        {% if p.translation != "" %}<br />{{ p.translation | safe }}{% endif %}
+      </p>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if data.components | length > 0 %}
+    <div style="margin-top: 1.5em;">
+      <p><i>Components</i></p>
+
+      {% for p in data.components %}
+      <p>
+        <b>{{ p.term_text }}</b>
+        {% if p.romanization != "" %}<i>({{ p.romanization }})</i>{% endif %}
+        {% for t in p.tags %}
+        <span class="termpopup-tag">{{ t }}</span>
+        {% endfor %}
+        {% if p.translation != "" %}<br />{{ p.translation | safe }}{% endif %}
+      </p>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div> {# End of termpopup-tab-details #}
+
+  <div id="termpopup-tab-ai" class="lute-termpopup-tab-content" style="display: none;">
+    <div id="ai_explanation_content_wrapper">
+      {# Container for the actual explanation text #}
+      <div id="ai_explanation_content">
+        {# AI-generated content will be injected here by JavaScript #}
+      </div>
+      {# Loading indicator, shown/hidden by JavaScript #}
+      <div id="ai_explanation_loading_indicator" style="display: none;">
+        <i>Loading explanation...</i>
+        {# A spinner could be added here if Lute has a standard one #}
+      </div>
+      {# Error message display area, shown/hidden by JavaScript #}
+      <div id="ai_explanation_error" style="display: none; color: red;">
+        {# Error messages will be injected here #}
+      </div>
+      {# Retry button, shown/hidden by JavaScript on error #}
+      {# <button id="ai_explanation_retry_button" style="display: none;">Retry</button> #}
+      {# Retry button might be better handled by the JS that calls this, for now just a placeholder #}
+    </div>
+  </div> {# End of termpopup-tab-ai #}
+
+</div> {# End of lute-termpopup-tabs #}
+
+{# Placeholder for JavaScript to know which term, sentence, and language are active #}
+<div id="termpopup_ai_parameters"
+     style="display: none;"
+     data-termtext="{{ data.term_text_for_lookup }}"
+     data-sentence="{{ data.sentence_for_context }}"
+     data-langname="{{ data.language_name_for_ai }}">
 </div>
-{% endif %}
-
-{% if data.components | length > 0 %}
-
-<div style="margin-top: 1.5em;">
-  <p><i>Components</i></p>
-
-  {% for p in data.components %}
-  <p>
-    <b>{{ p.term_text }}</b>
-    {% if p.romanization != "" %}<i>({{ p.romanization }})</i>{% endif %}
-    {% for t in p.tags %}
-    <span class="termpopup-tag">{{ t }}</span>
-    {% endfor %}
-    {% if p.translation != "" %}<br />{{ p.translation | safe }}{% endif %}
-  </p>
-  {% endfor %}
-</div>
-{% endif %}
